@@ -7,10 +7,11 @@
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  :root { --panel-w: 360px; --bg:#0a0f14; --fg:#d7e1ea; --muted:#7991a1; --accent:#18e0ff; --accent2:#8a7dff; }
-  html, body { height:100%; margin:0; background:var(--bg); color:var(--fg); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans", Arial, sans-serif; }
+  :root { --panel-w: 360px; --bg:#0a0f14; --fg:#d7e1ea; --muted:#7991a1; --accent:#18e0ff; }
+  html, body { height:100%; margin:0; background:var(--bg); color:var(--fg);
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans", Arial, sans-serif; }
   #map { position:absolute; inset:0; }
-  /* subtle tech grid */
+  /* subtle tech grid overlay */
   #map::after{
     content:""; position:absolute; inset:0; pointer-events:none;
     background-image: radial-gradient(rgba(24,224,255,.06) 1px, transparent 1px);
@@ -18,8 +19,7 @@
   }
   #panel {
     position:absolute; top:12px; left:12px; width:var(--panel-w);
-    background: rgba(8,12,18,.76);
-    backdrop-filter: blur(8px);
+    background: rgba(8,12,18,.76); backdrop-filter: blur(8px);
     border: 1px solid rgba(24,224,255,.25);
     box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 40px rgba(24,224,255,.07) inset;
     border-radius:14px; padding:14px; z-index:10;
@@ -45,6 +45,13 @@
   .dot { width:10px; height:10px; border-radius:50%; background:#18e0ff; box-shadow:0 0 6px #18e0ff; border:2px solid #fff; }
   a { color: var(--accent); }
   @media (max-width: 720px){ :root { --panel-w: calc(100vw - 24px); } }
+  /* Popup: dark background + white text; keep links cyan */
+  .mapboxgl-popup-content {
+    background:#111 !important; color:#fff !important; border-radius:8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.6);
+  }
+  .mapboxgl-popup-content a { color:#18e0ff !important; }
+  .mapboxgl-popup-tip { border-top-color:#111 !important; border-bottom-color:#111 !important; }
 </style>
 </head>
 <body>
@@ -64,17 +71,17 @@
   </div>
 
   <div class="row">
-    <div class="small">Score range (min 0.15, max 4.9 — multiple select)</div>
+    <div class="small">Score range (0.15–0.49, multiple)</div>
     <div class="grp" id="scoreRanges">
-      <label><input type="checkbox" value="4.0-4.9" checked> 4.0–4.9</label>
-      <label><input type="checkbox" value="3.0-4.0" checked> 3.0–4.0</label>
-      <label><input type="checkbox" value="2.0-3.0" checked> 2.0–3.0</label>
-      <label><input type="checkbox" value="0.15-2.0" checked> 0.15–2.0</label>
+      <label><input type="checkbox" value="0.40-0.49" checked> 0.40–0.49</label>
+      <label><input type="checkbox" value="0.30-0.40" checked> 0.30–0.40</label>
+      <label><input type="checkbox" value="0.20-0.30" checked> 0.20–0.30</label>
+      <label><input type="checkbox" value="0.15-0.20" checked> 0.15–0.20</label>
     </div>
   </div>
 
   <div class="row">
-    <div class="small">Rating range (0–5 stars — multiple select)</div>
+    <div class="small">Rating range (0–5 ★, multiple)</div>
     <div class="grp" id="ratingRanges">
       <label><input type="checkbox" value="4-5" checked> 4–5★</label>
       <label><input type="checkbox" value="3-4" checked> 3–4★</label>
@@ -108,10 +115,10 @@
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
 <script>
   // ==== Configuration ====
-  const MAPBOX_TOKEN = "pk.eyJ1IjoiaGFydWNoYW5uIiwiYSI6ImNsdnFlZWRidTAyNmkya21yem1wMjhzZHUifQ.GrEXJlVvv0ljdkQXoEQTTQ"; // ← your public Mapbox token
-  const GEOJSON_URL = "./paris_japanese_night.geojson"; // or absolute URL on GitHub Pages
+  const MAPBOX_TOKEN = "pk.eyJ1IjoiaGFydWNoYW5uIiwiYSI6ImNsdnFlZWRidTAyNmkya21yem1wMjhzZHUifQ.GrEXJlVvv0ljdkQXoEQTTQ";     // ← your public Mapbox token
+  const GEOJSON_URL  = "./paris_japanese_night.geojson"; // or absolute URL
 
-  // Satellite (dark-ish) style
+  // Satellite (dark-ish) base
   mapboxgl.accessToken = MAPBOX_TOKEN;
   const map = new mapboxgl.Map({
     container: 'map',
@@ -121,7 +128,7 @@
   });
 
   let originalData = null;
-  let currentData = null;
+  let currentData  = null;
 
   const $count = document.getElementById('count');
   const $reset = document.getElementById('reset');
@@ -132,22 +139,22 @@
   const $sortBy = document.getElementById('sortBy');
 
   // ---- helpers ----
-  function parseRange(str){ const [a,b] = str.split('-').map(Number); return [a,b]; }
-  function selectedRanges(nodes){ return nodes.filter(n => n.checked).map(n => parseRange(n.value)); }
+  const parseRange = (s)=> s.split('-').map(Number);
+  const selectedRanges = (nodes)=> nodes.filter(n=>n.checked).map(n=>parseRange(n.value));
   function inAnyRange(val, ranges, inclusiveUpper=false){
     if (ranges.length===0) return true;
     return ranges.some(([lo,hi]) => inclusiveUpper ? (val>=lo && val<=hi+1e-12) : (val>=lo && val<hi));
   }
-  function allowedPL(){ return new Set($plChecks.filter(c=>c.checked).map(c=>c.value)); }
+  const allowedPL = ()=> new Set($plChecks.filter(c=>c.checked).map(c=>c.value));
 
   function sortFeatures(features){
     const v = $sortBy.value;
     const cmp = {
-      "score-desc": (a,b)=> (+(b.properties.score ?? 0)) - (+(a.properties.score ?? 0)),
-      "rating-desc":(a,b)=> (+(b.properties.rating?? 0)) - (+(a.properties.rating?? 0)),
-      "reviews-desc":(a,b)=> (+(b.properties.reviews??0)) - (+(a.properties.reviews??0)),
-      "price-asc": (a,b)=> (a.properties.price_level ?? 99) - (b.properties.price_level ?? 99),
-      "name-asc":  (a,b)=> String(a.properties.name??"").localeCompare(String(b.properties.name??""))
+      "score-desc":  (a,b)=> (+(b.properties.score ?? 0)) - (+(a.properties.score ?? 0)),
+      "rating-desc": (a,b)=> (+(b.properties.rating ?? 0)) - (+(a.properties.rating ?? 0)),
+      "reviews-desc":(a,b)=> (+(b.properties.reviews ?? 0)) - (+(a.properties.reviews ?? 0)),
+      "price-asc":   (a,b)=> (a.properties.price_level ?? 99) - (b.properties.price_level ?? 99),
+      "name-asc":    (a,b)=> String(a.properties.name ?? "").localeCompare(String(b.properties.name ?? ""))
     }[v] || (()=>0);
     return features.slice().sort(cmp);
   }
@@ -162,8 +169,8 @@
       const rating = Number(p.rating ?? 0);
       const pl = (p.price_level===null || p.price_level===undefined) ? 'none' : String(p.price_level);
       if (!allowed.has(pl)) return false;
-      if (!inAnyRange(score, scoreSel, true)) return false;   // inclusive upper
-      if (!inAnyRange(rating, ratingSel, true)) return false; // inclusive upper
+      if (!inAnyRange(score,  scoreSel,  true)) return false; // inclusiveUpper
+      if (!inAnyRange(rating, ratingSel, true)) return false;
       return true;
     });
   }
@@ -171,8 +178,8 @@
   function applyFilters(){
     if (!originalData) return;
     const filtered = filterFeatures(originalData.features);
-    const sorted = sortFeatures(filtered);
-    currentData = { type:'FeatureCollection', features: sorted };
+    const sorted   = sortFeatures(filtered);
+    currentData    = { type:'FeatureCollection', features: sorted };
     const src = map.getSource('places');
     if (src) src.setData(currentData);
     $count.textContent = `${sorted.length} items`;
@@ -189,7 +196,7 @@
   async function init(){
     const res = await fetch(GEOJSON_URL);
     originalData = await res.json();
-    currentData = originalData;
+    currentData  = originalData;
 
     map.on('load', () => {
       map.addSource('places', {
@@ -200,18 +207,11 @@
       map.addLayer({
         id:'clusters', type:'circle', source:'places', filter:['has','point_count'],
         paint:{
-          'circle-color': [
-            'step',['get','point_count'],
-            '#16c7e0', 20, // cyan
-            '#4c77ff', 50, // blue
-            '#a05bff'      // violet
+          'circle-color': ['step',['get','point_count'],
+            '#16c7e0', 20, '#4c77ff', 50, '#a05bff'
           ],
-          'circle-radius': [
-            'step',['get','point_count'],
-            14, 20, 18, 50, 24
-          ],
-          'circle-stroke-color':'#091219',
-          'circle-stroke-width':1
+          'circle-radius': ['step',['get','point_count'], 14, 20, 18, 50, 24],
+          'circle-stroke-color':'#091219', 'circle-stroke-width':1
         }
       });
 
@@ -225,10 +225,8 @@
       map.addLayer({
         id:'unclustered-point', type:'circle', source:'places', filter:['!',['has','point_count']],
         paint:{
-          'circle-color':'#18e0ff',
-          'circle-radius':6,
-          'circle-stroke-color':'#ffffff',
-          'circle-stroke-width':1.8
+          'circle-color':'#18e0ff', 'circle-radius':6,
+          'circle-stroke-color':'#ffffff', 'circle-stroke-width':1.8
         }
       });
 
@@ -237,29 +235,28 @@
         const features = map.queryRenderedFeatures(e.point,{layers:['clusters']});
         const clusterId = features[0].properties.cluster_id;
         map.getSource('places').getClusterExpansionZoom(clusterId,(err,zoom)=>{
-          if (err) return;
-          map.easeTo({center:features[0].geometry.coordinates, zoom});
+          if (err) return; map.easeTo({center:features[0].geometry.coordinates, zoom});
         });
       });
 
       map.on('click','unclustered-point', e=>{
         const f = e.features[0], p=f.properties, coords=f.geometry.coordinates.slice();
-        const priceTxt = (p.price_level===null || p.price_level===undefined) ? "€?" : `€${p.price_level}`;
-        const scoreTxt = Number(p.score ?? 0).toFixed(3);
+        const priceTxt  = (p.price_level===null || p.price_level===undefined) ? "€?" : `€${p.price_level}`;
+        const scoreTxt  = Number(p.score ?? 0).toFixed(3);
         const ratingTxt = (p.rating ?? '-');
-        const reviewsTxt = (p.reviews ?? '-');
-        const name = p.name ?? '(unknown)';
-        const addr = p.address ?? '';
-        const link = p.gmaps_url ?? '#';
-        new mapboxgl.Popup({offset:8}).setLngLat(coords).setHTML(`
-          <div style="min-width:240px">
-            <b>${name}</b><br/>
-            <span style="font-family:'JetBrains Mono',monospace;">score=${scoreTxt} • rating=${ratingTxt} • reviews=${reviewsTxt}</span><br/>
-            price=${priceTxt}<br/>
-            ${addr}<br/>
-            <a href="${link}" target="_blank" rel="noopener">Open in Google Maps</a>
-          </div>
-        `).addTo(map);
+        const reviewsTxt= (p.reviews ?? '-');
+        const name = p.name ?? '(unknown)'; const addr = p.address ?? ''; const link = p.gmaps_url ?? '#';
+        new mapboxgl.Popup({offset:8})
+          .setLngLat(coords)
+          .setHTML(`
+            <div style="min-width:240px; font-size:13px;">
+              <b>${name}</b><br/>
+              <span style="font-family:'JetBrains Mono',monospace;">score=${scoreTxt} • rating=${ratingTxt} • reviews=${reviewsTxt}</span><br/>
+              price=${priceTxt}<br/>
+              ${addr}<br/>
+              <a href="${link}" target="_blank" rel="noopener">Open in Google Maps</a>
+            </div>
+          `).addTo(map);
       });
 
       map.on('mouseenter','clusters',()=> map.getCanvas().style.cursor='pointer');
@@ -282,12 +279,10 @@
       applyFilters();
     });
   }
-
   init();
 
-  // debug hook (open console if needed)
+  // debug hook if needed
   map.on('error', e => console.error('Mapbox error:', e && e.error));
 </script>
 </body>
 </html>
-
