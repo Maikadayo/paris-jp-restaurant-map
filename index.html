@@ -1,77 +1,99 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Paris Japanese Night — Cluster & Filters</title>
+<title>Paris Japanese Night — Cluster & Filters (EN)</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css" rel="stylesheet">
 <style>
-  :root { --panel-w: 320px; }
-  html, body { height:100%; margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", Arial, sans-serif; }
-  #map { position:absolute; top:0; bottom:0; left:0; right:0; }
+  :root { --panel-w: 340px; }
+  html, body { height:100%; margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif; }
+  #map { position:absolute; inset:0; }
   #panel {
     position:absolute; top:10px; left:10px; width:var(--panel-w);
     background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.15);
-    padding:14px 14px 10px; z-index:10;
+    padding:14px; z-index:10;
   }
   #panel h2 { margin:6px 0 8px; font-size:16px; }
-  #panel .row { margin:8px 0; }
-  .range { width:100%; }
+  #panel .row { margin:10px 0; }
   .small { color:#555; font-size:12px; }
   .badge { display:inline-block; background:#f2f4f8; border-radius:999px; padding:3px 8px; font-size:12px; margin-left:6px; }
+  .grp { display:flex; flex-wrap:wrap; gap:8px 12px; margin-top:6px; }
+  .grp label { font-size:13px; }
   .legend { display:flex; gap:8px; align-items:center; margin-top:6px; }
   .dot { width:10px; height:10px; border-radius:50%; background:#ee7623; border:2px solid white; box-shadow:0 0 2px rgba(0,0,0,.5); }
   .btn { display:inline-block; border:1px solid #ddd; border-radius:8px; padding:6px 10px; background:#fff; cursor:pointer; }
   .btn:active { transform: translateY(1px); }
-  .footer { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
-  @media (max-width: 720px){
-    :root { --panel-w: calc(100vw - 20px); }
-  }
+  select { border:1px solid #ddd; border-radius:8px; padding:6px 8px; }
+  @media (max-width: 720px){ :root { --panel-w: calc(100vw - 20px); } }
 </style>
 </head>
 <body>
 <div id="map"></div>
 
 <div id="panel">
-  <h2>夜の日本食マップ <span id="count" class="badge">0件</span></h2>
+  <h2>Japanese Restaurants at Night <span id="count" class="badge">0 items</span></h2>
 
   <div class="row">
-    <div class="small">価格帯（Google price_level）</div>
-    <label><input type="checkbox" class="pl" value="0" checked> € (0)</label>
-    <label><input type="checkbox" class="pl" value="1" checked> € (1)</label>
-    <label><input type="checkbox" class="pl" value="2" checked> €€ (2)</label>
-    <label><input type="checkbox" class="pl" value="none" checked> 不明</label>
+    <div class="small">Price level (Google <code>price_level</code>)</div>
+    <div class="grp">
+      <label><input type="checkbox" class="pl" value="0" checked> € (0)</label>
+      <label><input type="checkbox" class="pl" value="1" checked> € (1)</label>
+      <label><input type="checkbox" class="pl" value="2" checked> €€ (2)</label>
+      <label><input type="checkbox" class="pl" value="none" checked> Unknown</label>
+    </div>
   </div>
 
   <div class="row">
-    <div>最低スコア: <span id="scoreVal" class="badge">0.00</span></div>
-    <input id="score" class="range" type="range" min="0" max="1" step="0.01" value="0">
+    <div class="small">Score range (internal 0–1, multiple)</div>
+    <div class="grp" id="scoreRanges">
+      <label><input type="checkbox" value="0.8-1.0" checked> 0.8–1.0</label>
+      <label><input type="checkbox" value="0.6-0.8" checked> 0.6–0.8</label>
+      <label><input type="checkbox" value="0.4-0.6" checked> 0.4–0.6</label>
+      <label><input type="checkbox" value="0.0-0.4" checked> 0.0–0.4</label>
+    </div>
   </div>
 
   <div class="row">
-    <div>最低評価(⭐): <span id="ratingVal" class="badge">0.0</span></div>
-    <input id="rating" class="range" type="range" min="0" max="5" step="0.1" value="0">
+    <div class="small">Rating range (0–5 stars, multiple)</div>
+    <div class="grp" id="ratingRanges">
+      <label><input type="checkbox" value="4-5" checked> 4–5★</label>
+      <label><input type="checkbox" value="3-4" checked> 3–4★</label>
+      <label><input type="checkbox" value="2-3" checked> 2–3★</label>
+      <label><input type="checkbox" value="0-2" checked> 0–2★</label>
+    </div>
   </div>
 
   <div class="row">
-    <button id="reset" class="btn">フィルタをリセット</button>
-    <button id="download" class="btn">表示中データをダウンロード</button>
+    <div class="small">Sort by</div>
+    <select id="sortBy">
+      <option value="score-desc" selected>Score ↓</option>
+      <option value="rating-desc">Rating ↓</option>
+      <option value="reviews-desc">Reviews ↓</option>
+      <option value="price-asc">Price (cheaper first)</option>
+      <option value="name-asc">Name A→Z</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <button id="reset" class="btn">Reset filters</button>
+    <button id="download" class="btn">Download visible</button>
   </div>
 
   <div class="legend small">
-    <div class="dot"></div> ピンをクリックで詳細（店名/スコア/評価/住所/Googleマップ）
+    <div class="dot"></div> Click a pin for details (name / score / rating / address / Google Maps)
   </div>
 
-  <div class="footer small">
-    Map: © Mapbox © OpenStreetMap
-  </div>
+  <div class="small" style="margin-top:6px;">Map: © Mapbox © OpenStreetMap</div>
 </div>
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
 <script>
-  // ==== 設定 ====
-  const MAPBOX_TOKEN = "pk.eyJ1IjoiaGFydWNoYW5uIiwiYSI6ImNsdnFlZWRidTAyNmkya21yem1wMjhzZHUifQ.GrEXJlVvv0ljdkQXoEQTTQ"; // ← あなたのMapbox公開トークン
-  const GEOJSON_URL = "./paris_japanese_night.geojson"; // 同じフォルダに置く
+  // ==== Configuration ====
+  const MAPBOX_TOKEN = "pk.eyJ1IjoiaGFydWNoYW5uIiwiYSI6ImNsdnFkaThuajAxdnYya253dDZqZjdrYWEifQ.-K4v14BLsZ0f7P6SrzRnfA"; // ← your public Mapbox token
+  // Use absolute URL to avoid path issues on GitHub Pages:
+  const GEOJSON_URL = "./paris_japanese_night.geojson";
+  // e.g. "https://<user>.github.io/<repo>/paris_japanese_night.geojson"
 
   mapboxgl.accessToken = MAPBOX_TOKEN;
   const map = new mapboxgl.Map({
@@ -84,82 +106,98 @@
   let originalData = null;
   let currentData = null;
 
-  const $score = document.getElementById('score');
-  const $scoreVal = document.getElementById('scoreVal');
-  const $rating = document.getElementById('rating');
-  const $ratingVal = document.getElementById('ratingVal');
   const $count = document.getElementById('count');
   const $reset = document.getElementById('reset');
   const $download = document.getElementById('download');
   const $plChecks = Array.from(document.querySelectorAll('.pl'));
+  const $scoreRanges = Array.from(document.querySelectorAll('#scoreRanges input[type=checkbox]'));
+  const $ratingRanges = Array.from(document.querySelectorAll('#ratingRanges input[type=checkbox]'));
+  const $sortBy = document.getElementById('sortBy');
 
-  function updateBadges() {
-    $scoreVal.textContent = Number($score.value).toFixed(2);
-    $ratingVal.textContent = Number($rating.value).toFixed(1);
+  function parseRange(str){
+    const [a,b] = str.split('-').map(Number);
+    return [a,b];
+  }
+  function inAnyRange(val, ranges, upperInclusive=false){
+    if (ranges.length===0) return true; // treat as ALL if none checked
+    return ranges.some(([lo,hi]) => {
+      if (upperInclusive) return val >= lo && val <= hi + 1e-12;
+      return val >= lo && val < hi;
+    });
+  }
+  function selectedRanges($nodes){
+    return $nodes.filter(n => n.checked).map(n => parseRange(n.value));
+  }
+  function allowedPriceLevels(){
+    return new Set($plChecks.filter(c => c.checked).map(c => c.value));
   }
 
-  function countVisible() {
-    const n = currentData?.features?.length ?? 0;
-    $count.textContent = `${n}件`;
+  function sortFeatures(features){
+    const v = $sortBy.value;
+    const cmp = {
+      "score-desc": (a,b) => (+(b.properties.score ?? 0)) - (+(a.properties.score ?? 0)),
+      "rating-desc": (a,b) => (+(b.properties.rating ?? 0)) - (+(a.properties.rating ?? 0)),
+      "reviews-desc": (a,b) => (+(b.properties.reviews ?? 0)) - (+(a.properties.reviews ?? 0)),
+      "price-asc": (a,b) => {
+        const pa = (a.properties.price_level ?? 99);
+        const pb = (b.properties.price_level ?? 99);
+        return pa - pb;
+      },
+      "name-asc": (a,b) => String(a.properties.name ?? "").localeCompare(String(b.properties.name ?? ""))
+    }[v] || (()=>0);
+    // Note: order doesn't affect how clusters render, but it applies to the "Download visible" data.
+    return features.slice().sort(cmp);
   }
 
-  function filterFeatures(features) {
-    const minScore = parseFloat($score.value);
-    const minRating = parseFloat($rating.value);
-    const allowedPL = new Set(
-      $plChecks.filter(c => c.checked).map(c => c.value)
-    );
+  function filterFeatures(features){
+    const scoreSel = selectedRanges($scoreRanges);
+    const ratingSel = selectedRanges($ratingRanges);
+    const allowedPL = allowedPriceLevels();
     return features.filter(f => {
       const p = f.properties || {};
       const score = Number(p.score ?? 0);
       const rating = Number(p.rating ?? 0);
       const pl = (p.price_level === null || p.price_level === undefined) ? 'none' : String(p.price_level);
       if (!allowedPL.has(pl)) return false;
-      if (score < minScore) return false;
-      if (rating < minRating) return false;
+      if (!inAnyRange(score, scoreSel, /*upperInclusive*/true)) return false;
+      if (!inAnyRange(rating, ratingSel, /*upperInclusive*/true)) return false;
       return true;
     });
   }
 
-  function applyFilters() {
+  function applyFilters(){
     if (!originalData) return;
     const filtered = filterFeatures(originalData.features);
-    currentData = { type: 'FeatureCollection', features: filtered };
-    // Sourceに再投入して再クラスタリング
+    const sorted = sortFeatures(filtered);
+    currentData = { type: 'FeatureCollection', features: sorted };
     const src = map.getSource('places');
-    if (src) {
-      src.setData(currentData);
-    }
-    countVisible();
+    if (src) src.setData(currentData);
+    $count.textContent = `${sorted.length} items`;
   }
 
-  function downloadVisible() {
+  function downloadVisible(){
     if (!currentData) return;
     const blob = new Blob([JSON.stringify(currentData, null, 2)], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
-    const a = Object.assign(document.createElement('a'), {
-      href: url, download: 'filtered_paris_japanese_night.geojson'
-    });
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
+    const a = Object.assign(document.createElement('a'), { href:url, download:'filtered_paris_japanese_night.geojson' });
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
 
-  async function init() {
+  async function init(){
     const res = await fetch(GEOJSON_URL);
-    originalData = await res.json();
-    currentData = originalData;
+    const gj = await res.json();
+    originalData = gj;
+    currentData = gj;
 
     map.on('load', () => {
-      // クラスタリング有効なSource
       map.addSource('places', {
         type: 'geojson',
         data: currentData,
         cluster: true,
-        clusterMaxZoom: 15,   // ズームでクラスター解除
-        clusterRadius: 50     // クラスターの半径(px)
+        clusterMaxZoom: 15,
+        clusterRadius: 50
       });
 
-      // クラスター円の塗り（件数で色分け）
       map.addLayer({
         id: 'clusters',
         type: 'circle',
@@ -167,23 +205,18 @@
         filter: ['has', 'point_count'],
         paint: {
           'circle-color': [
-            'step',
-            ['get', 'point_count'],
+            'step', ['get','point_count'],
             '#A0D7A7', 20,
             '#66B3FF', 50,
             '#FFB84D'
           ],
           'circle-radius': [
-            'step',
-            ['get', 'point_count'],
-            14, 20,
-            18, 50,
-            24
+            'step', ['get','point_count'],
+            14, 20, 18, 50, 24
           ]
         }
       });
 
-      // クラスターの数字ラベル
       map.addLayer({
         id: 'cluster-count',
         type: 'symbol',
@@ -196,7 +229,6 @@
         }
       });
 
-      // 単独ポイント
       map.addLayer({
         id: 'unclustered-point',
         type: 'circle',
@@ -210,64 +242,64 @@
         }
       });
 
-      // クリック：クラスター→ズーム拡張
       map.on('click', 'clusters', (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
         const clusterId = features[0].properties.cluster_id;
         map.getSource('places').getClusterExpansionZoom(clusterId, (err, zoom) => {
           if (err) return;
-          map.easeTo({ center: features[0].geometry.coordinates, zoom: zoom });
+          map.easeTo({ center: features[0].geometry.coordinates, zoom });
         });
       });
 
-      // クリック：単独ポイント→ポップアップ
       map.on('click', 'unclustered-point', (e) => {
         const f = e.features[0];
         const p = f.properties;
         const coords = f.geometry.coordinates.slice();
-        const price = (p.price_level === null || p.price_level === undefined) ? "€?" : `€${p.price_level}`;
-        const rating = (p.rating ?? '-');
-        const reviews = (p.reviews ?? '-');
-        const score = Number(p.score ?? 0).toFixed(3);
-        const name = p.name ?? '(名称不明)';
+        const priceTxt = (p.price_level === null || p.price_level === undefined) ? "€?" : `€${p.price_level}`;
+        const ratingTxt = (p.rating ?? '-');
+        const reviewsTxt = (p.reviews ?? '-');
+        const scoreTxt = Number(p.score ?? 0).toFixed(3);
+        const name = p.name ?? '(unknown)';
         const address = p.address ?? '';
         const link = p.gmaps_url ?? '#';
-        const html = `
-          <b>${name}</b><br/>
-          スコア: ${score}<br/>
-          評価: ${rating}（${reviews}件）<br/>
-          価格帯: ${price}<br/>
-          住所: ${address}<br/>
-          <a href="${link}" target="_blank" rel="noopener">Googleマップで開く</a>
-        `;
-        new mapboxgl.Popup({offset:8}).setLngLat(coords).setHTML(html).addTo(map);
+        new mapboxgl.Popup({offset:8})
+          .setLngLat(coords)
+          .setHTML(`
+            <b>${name}</b><br/>
+            Score: ${scoreTxt}<br/>
+            Rating: ${ratingTxt} (${reviewsTxt})<br/>
+            Price level: ${priceTxt}<br/>
+            Address: ${address}<br/>
+            <a href="${link}" target="_blank" rel="noopener">Open in Google Maps</a>
+          `).addTo(map);
       });
 
-      // カーソル
       map.on('mouseenter', 'clusters', () => map.getCanvas().style.cursor = 'pointer');
       map.on('mouseleave', 'clusters', () => map.getCanvas().style.cursor = '');
       map.on('mouseenter', 'unclustered-point', () => map.getCanvas().style.cursor = 'pointer');
       map.on('mouseleave', 'unclustered-point', () => map.getCanvas().style.cursor = '');
 
-      // UIイベント
-      [$score, $rating, ...$plChecks].forEach(el => el.addEventListener('input', () => {
-        updateBadges(); applyFilters();
-      }));
+      // UI events
+      [...$plChecks, ...$scoreRanges, ...$ratingRanges].forEach(el => el.addEventListener('input', applyFilters));
+      $sortBy.addEventListener('change', applyFilters);
       $reset.addEventListener('click', () => {
-        $score.value = 0; $rating.value = 0;
         $plChecks.forEach(c => c.checked = true);
-        updateBadges(); applyFilters();
+        $scoreRanges.forEach(c => c.checked = true);
+        $ratingRanges.forEach(c => c.checked = true);
+        $sortBy.value = 'score-desc';
+        applyFilters();
       });
       $download.addEventListener('click', downloadVisible);
 
-      updateBadges();
-      countVisible();
+      // initial apply (to set count)
+      applyFilters();
     });
   }
 
   init();
+
+  // Helpful debug (open browser console if needed)
+  map.on('error', e => console.error('Mapbox error:', e && e.error));
 </script>
 </body>
 </html>
-
-
