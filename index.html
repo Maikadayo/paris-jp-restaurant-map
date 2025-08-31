@@ -3,29 +3,48 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Paris Japanese Night — Cluster & Filters (EN)</title>
+<title>Paris Japanese Night — Satellite • Clusters • Filters</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  :root { --panel-w: 340px; }
-  html, body { height:100%; margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif; }
+  :root { --panel-w: 360px; --bg:#0a0f14; --fg:#d7e1ea; --muted:#7991a1; --accent:#18e0ff; --accent2:#8a7dff; }
+  html, body { height:100%; margin:0; background:var(--bg); color:var(--fg); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans", Arial, sans-serif; }
   #map { position:absolute; inset:0; }
-  #panel {
-    position:absolute; top:10px; left:10px; width:var(--panel-w);
-    background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.15);
-    padding:14px; z-index:10;
+  /* subtle tech grid */
+  #map::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background-image: radial-gradient(rgba(24,224,255,.06) 1px, transparent 1px);
+    background-size: 18px 18px;
   }
-  #panel h2 { margin:6px 0 8px; font-size:16px; }
-  #panel .row { margin:10px 0; }
-  .small { color:#555; font-size:12px; }
-  .badge { display:inline-block; background:#f2f4f8; border-radius:999px; padding:3px 8px; font-size:12px; margin-left:6px; }
-  .grp { display:flex; flex-wrap:wrap; gap:8px 12px; margin-top:6px; }
-  .grp label { font-size:13px; }
-  .legend { display:flex; gap:8px; align-items:center; margin-top:6px; }
-  .dot { width:10px; height:10px; border-radius:50%; background:#ee7623; border:2px solid white; box-shadow:0 0 2px rgba(0,0,0,.5); }
-  .btn { display:inline-block; border:1px solid #ddd; border-radius:8px; padding:6px 10px; background:#fff; cursor:pointer; }
+  #panel {
+    position:absolute; top:12px; left:12px; width:var(--panel-w);
+    background: rgba(8,12,18,.76);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(24,224,255,.25);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 40px rgba(24,224,255,.07) inset;
+    border-radius:14px; padding:14px; z-index:10;
+  }
+  #panel h2 { margin:6px 0 10px; font-size:16px; letter-spacing:.3px; }
+  code { font-family:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .row { margin:12px 0; }
+  .small { color:var(--muted); font-size:12px; }
+  .badge { display:inline-block; background:rgba(24,224,255,.14); color:var(--accent);
+           border:1px solid rgba(24,224,255,.35); border-radius:999px; padding:3px 8px; font-size:12px;
+           font-family:"JetBrains Mono", ui-monospace; margin-left:8px; }
+  .grp { display:flex; flex-wrap:wrap; gap:8px 12px; margin-top:8px; }
+  .grp label { font-size:13px; user-select:none; }
+  input[type="checkbox"]{ accent-color: var(--accent); }
+  .btn, select {
+    background: rgba(16,22,30,.85); color:var(--fg);
+    border:1px solid rgba(122,140,160,.45); border-radius:10px;
+    padding:8px 10px; cursor:pointer;
+  }
+  .btn:hover, select:hover { border-color: rgba(24,224,255,.6); }
   .btn:active { transform: translateY(1px); }
-  select { border:1px solid #ddd; border-radius:8px; padding:6px 8px; }
-  @media (max-width: 720px){ :root { --panel-w: calc(100vw - 20px); } }
+  .legend { display:flex; gap:8px; align-items:center; margin-top:6px; }
+  .dot { width:10px; height:10px; border-radius:50%; background:#18e0ff; box-shadow:0 0 6px #18e0ff; border:2px solid #fff; }
+  a { color: var(--accent); }
+  @media (max-width: 720px){ :root { --panel-w: calc(100vw - 24px); } }
 </style>
 </head>
 <body>
@@ -35,7 +54,7 @@
   <h2>Japanese Restaurants at Night <span id="count" class="badge">0 items</span></h2>
 
   <div class="row">
-    <div class="small">Price level (Google <code>price_level</code>)</div>
+    <div class="small">Price level (<code>price_level</code>)</div>
     <div class="grp">
       <label><input type="checkbox" class="pl" value="0" checked> € (0)</label>
       <label><input type="checkbox" class="pl" value="1" checked> € (1)</label>
@@ -45,17 +64,17 @@
   </div>
 
   <div class="row">
-    <div class="small">Score range (internal 0–1, multiple)</div>
+    <div class="small">Score range (min 0.15, max 4.9 — multiple select)</div>
     <div class="grp" id="scoreRanges">
-      <label><input type="checkbox" value="0.8-1.0" checked> 0.8–1.0</label>
-      <label><input type="checkbox" value="0.6-0.8" checked> 0.6–0.8</label>
-      <label><input type="checkbox" value="0.4-0.6" checked> 0.4–0.6</label>
-      <label><input type="checkbox" value="0.0-0.4" checked> 0.0–0.4</label>
+      <label><input type="checkbox" value="4.0-4.9" checked> 4.0–4.9</label>
+      <label><input type="checkbox" value="3.0-4.0" checked> 3.0–4.0</label>
+      <label><input type="checkbox" value="2.0-3.0" checked> 2.0–3.0</label>
+      <label><input type="checkbox" value="0.15-2.0" checked> 0.15–2.0</label>
     </div>
   </div>
 
   <div class="row">
-    <div class="small">Rating range (0–5 stars, multiple)</div>
+    <div class="small">Rating range (0–5 stars — multiple select)</div>
     <div class="grp" id="ratingRanges">
       <label><input type="checkbox" value="4-5" checked> 4–5★</label>
       <label><input type="checkbox" value="3-4" checked> 3–4★</label>
@@ -83,22 +102,20 @@
   <div class="legend small">
     <div class="dot"></div> Click a pin for details (name / score / rating / address / Google Maps)
   </div>
-
   <div class="small" style="margin-top:6px;">Map: © Mapbox © OpenStreetMap</div>
 </div>
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
 <script>
   // ==== Configuration ====
-  const MAPBOX_TOKEN = "pk.eyJ1IjoiaGFydWNoYW5uIiwiYSI6ImNsdnFkaThuajAxdnYya253dDZqZjdrYWEifQ.-K4v14BLsZ0f7P6SrzRnfA"; // ← your public Mapbox token
-  // Use absolute URL to avoid path issues on GitHub Pages:
-  const GEOJSON_URL = "./paris_japanese_night.geojson";
-  // e.g. "https://<user>.github.io/<repo>/paris_japanese_night.geojson"
+  const MAPBOX_TOKEN = "MAPBOX_TOKEN_HERE"; // ← your public Mapbox token
+  const GEOJSON_URL = "./paris_japanese_night.geojson"; // or absolute URL on GitHub Pages
 
+  // Satellite (dark-ish) style
   mapboxgl.accessToken = MAPBOX_TOKEN;
   const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/streets-v12',
+    style: 'mapbox://styles/mapbox/satellite-streets-v12',
     center: [2.3522, 48.8566],
     zoom: 12
   });
@@ -114,53 +131,39 @@
   const $ratingRanges = Array.from(document.querySelectorAll('#ratingRanges input[type=checkbox]'));
   const $sortBy = document.getElementById('sortBy');
 
-  function parseRange(str){
-    const [a,b] = str.split('-').map(Number);
-    return [a,b];
+  // ---- helpers ----
+  function parseRange(str){ const [a,b] = str.split('-').map(Number); return [a,b]; }
+  function selectedRanges(nodes){ return nodes.filter(n => n.checked).map(n => parseRange(n.value)); }
+  function inAnyRange(val, ranges, inclusiveUpper=false){
+    if (ranges.length===0) return true;
+    return ranges.some(([lo,hi]) => inclusiveUpper ? (val>=lo && val<=hi+1e-12) : (val>=lo && val<hi));
   }
-  function inAnyRange(val, ranges, upperInclusive=false){
-    if (ranges.length===0) return true; // treat as ALL if none checked
-    return ranges.some(([lo,hi]) => {
-      if (upperInclusive) return val >= lo && val <= hi + 1e-12;
-      return val >= lo && val < hi;
-    });
-  }
-  function selectedRanges($nodes){
-    return $nodes.filter(n => n.checked).map(n => parseRange(n.value));
-  }
-  function allowedPriceLevels(){
-    return new Set($plChecks.filter(c => c.checked).map(c => c.value));
-  }
+  function allowedPL(){ return new Set($plChecks.filter(c=>c.checked).map(c=>c.value)); }
 
   function sortFeatures(features){
     const v = $sortBy.value;
     const cmp = {
-      "score-desc": (a,b) => (+(b.properties.score ?? 0)) - (+(a.properties.score ?? 0)),
-      "rating-desc": (a,b) => (+(b.properties.rating ?? 0)) - (+(a.properties.rating ?? 0)),
-      "reviews-desc": (a,b) => (+(b.properties.reviews ?? 0)) - (+(a.properties.reviews ?? 0)),
-      "price-asc": (a,b) => {
-        const pa = (a.properties.price_level ?? 99);
-        const pb = (b.properties.price_level ?? 99);
-        return pa - pb;
-      },
-      "name-asc": (a,b) => String(a.properties.name ?? "").localeCompare(String(b.properties.name ?? ""))
+      "score-desc": (a,b)=> (+(b.properties.score ?? 0)) - (+(a.properties.score ?? 0)),
+      "rating-desc":(a,b)=> (+(b.properties.rating?? 0)) - (+(a.properties.rating?? 0)),
+      "reviews-desc":(a,b)=> (+(b.properties.reviews??0)) - (+(a.properties.reviews??0)),
+      "price-asc": (a,b)=> (a.properties.price_level ?? 99) - (b.properties.price_level ?? 99),
+      "name-asc":  (a,b)=> String(a.properties.name??"").localeCompare(String(b.properties.name??""))
     }[v] || (()=>0);
-    // Note: order doesn't affect how clusters render, but it applies to the "Download visible" data.
     return features.slice().sort(cmp);
   }
 
   function filterFeatures(features){
     const scoreSel = selectedRanges($scoreRanges);
     const ratingSel = selectedRanges($ratingRanges);
-    const allowedPL = allowedPriceLevels();
-    return features.filter(f => {
+    const allowed = allowedPL();
+    return features.filter(f=>{
       const p = f.properties || {};
       const score = Number(p.score ?? 0);
       const rating = Number(p.rating ?? 0);
-      const pl = (p.price_level === null || p.price_level === undefined) ? 'none' : String(p.price_level);
-      if (!allowedPL.has(pl)) return false;
-      if (!inAnyRange(score, scoreSel, /*upperInclusive*/true)) return false;
-      if (!inAnyRange(rating, ratingSel, /*upperInclusive*/true)) return false;
+      const pl = (p.price_level===null || p.price_level===undefined) ? 'none' : String(p.price_level);
+      if (!allowed.has(pl)) return false;
+      if (!inAnyRange(score, scoreSel, true)) return false;   // inclusive upper
+      if (!inAnyRange(rating, ratingSel, true)) return false; // inclusive upper
       return true;
     });
   }
@@ -169,7 +172,7 @@
     if (!originalData) return;
     const filtered = filterFeatures(originalData.features);
     const sorted = sortFeatures(filtered);
-    currentData = { type: 'FeatureCollection', features: sorted };
+    currentData = { type:'FeatureCollection', features: sorted };
     const src = map.getSource('places');
     if (src) src.setData(currentData);
     $count.textContent = `${sorted.length} items`;
@@ -177,7 +180,7 @@
 
   function downloadVisible(){
     if (!currentData) return;
-    const blob = new Blob([JSON.stringify(currentData, null, 2)], {type: 'application/json'});
+    const blob = new Blob([JSON.stringify(currentData, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement('a'), { href:url, download:'filtered_paris_japanese_night.geojson' });
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
@@ -185,120 +188,104 @@
 
   async function init(){
     const res = await fetch(GEOJSON_URL);
-    const gj = await res.json();
-    originalData = gj;
-    currentData = gj;
+    originalData = await res.json();
+    currentData = originalData;
 
     map.on('load', () => {
       map.addSource('places', {
-        type: 'geojson',
-        data: currentData,
-        cluster: true,
-        clusterMaxZoom: 15,
-        clusterRadius: 50
+        type:'geojson', data: currentData, cluster:true, clusterMaxZoom:15, clusterRadius:50
       });
 
+      // Clusters (neon-ish)
       map.addLayer({
-        id: 'clusters',
-        type: 'circle',
-        source: 'places',
-        filter: ['has', 'point_count'],
-        paint: {
+        id:'clusters', type:'circle', source:'places', filter:['has','point_count'],
+        paint:{
           'circle-color': [
-            'step', ['get','point_count'],
-            '#A0D7A7', 20,
-            '#66B3FF', 50,
-            '#FFB84D'
+            'step',['get','point_count'],
+            '#16c7e0', 20, // cyan
+            '#4c77ff', 50, // blue
+            '#a05bff'      // violet
           ],
           'circle-radius': [
-            'step', ['get','point_count'],
+            'step',['get','point_count'],
             14, 20, 18, 50, 24
-          ]
+          ],
+          'circle-stroke-color':'#091219',
+          'circle-stroke-width':1
         }
       });
 
       map.addLayer({
-        id: 'cluster-count',
-        type: 'symbol',
-        source: 'places',
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': ['get', 'point_count_abbreviated'],
-          'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-          'text-size': 12
-        }
+        id:'cluster-count', type:'symbol', source:'places', filter:['has','point_count'],
+        layout:{ 'text-field':['get','point_count_abbreviated'], 'text-font':['DIN Offc Pro Medium','Arial Unicode MS Bold'], 'text-size':12 },
+        paint:{ 'text-color':'#eaf7ff' }
       });
 
+      // Single points
       map.addLayer({
-        id: 'unclustered-point',
-        type: 'circle',
-        source: 'places',
-        filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-color': '#ee7623',
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 2,
-          'circle-radius': 6
+        id:'unclustered-point', type:'circle', source:'places', filter:['!',['has','point_count']],
+        paint:{
+          'circle-color':'#18e0ff',
+          'circle-radius':6,
+          'circle-stroke-color':'#ffffff',
+          'circle-stroke-width':1.8
         }
       });
 
-      map.on('click', 'clusters', (e) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+      // Interactions
+      map.on('click','clusters', e=>{
+        const features = map.queryRenderedFeatures(e.point,{layers:['clusters']});
         const clusterId = features[0].properties.cluster_id;
-        map.getSource('places').getClusterExpansionZoom(clusterId, (err, zoom) => {
+        map.getSource('places').getClusterExpansionZoom(clusterId,(err,zoom)=>{
           if (err) return;
-          map.easeTo({ center: features[0].geometry.coordinates, zoom });
+          map.easeTo({center:features[0].geometry.coordinates, zoom});
         });
       });
 
-      map.on('click', 'unclustered-point', (e) => {
-        const f = e.features[0];
-        const p = f.properties;
-        const coords = f.geometry.coordinates.slice();
-        const priceTxt = (p.price_level === null || p.price_level === undefined) ? "€?" : `€${p.price_level}`;
+      map.on('click','unclustered-point', e=>{
+        const f = e.features[0], p=f.properties, coords=f.geometry.coordinates.slice();
+        const priceTxt = (p.price_level===null || p.price_level===undefined) ? "€?" : `€${p.price_level}`;
+        const scoreTxt = Number(p.score ?? 0).toFixed(3);
         const ratingTxt = (p.rating ?? '-');
         const reviewsTxt = (p.reviews ?? '-');
-        const scoreTxt = Number(p.score ?? 0).toFixed(3);
         const name = p.name ?? '(unknown)';
-        const address = p.address ?? '';
+        const addr = p.address ?? '';
         const link = p.gmaps_url ?? '#';
-        new mapboxgl.Popup({offset:8})
-          .setLngLat(coords)
-          .setHTML(`
+        new mapboxgl.Popup({offset:8}).setLngLat(coords).setHTML(`
+          <div style="min-width:240px">
             <b>${name}</b><br/>
-            Score: ${scoreTxt}<br/>
-            Rating: ${ratingTxt} (${reviewsTxt})<br/>
-            Price level: ${priceTxt}<br/>
-            Address: ${address}<br/>
+            <span style="font-family:'JetBrains Mono',monospace;">score=${scoreTxt} • rating=${ratingTxt} • reviews=${reviewsTxt}</span><br/>
+            price=${priceTxt}<br/>
+            ${addr}<br/>
             <a href="${link}" target="_blank" rel="noopener">Open in Google Maps</a>
-          `).addTo(map);
+          </div>
+        `).addTo(map);
       });
 
-      map.on('mouseenter', 'clusters', () => map.getCanvas().style.cursor = 'pointer');
-      map.on('mouseleave', 'clusters', () => map.getCanvas().style.cursor = '');
-      map.on('mouseenter', 'unclustered-point', () => map.getCanvas().style.cursor = 'pointer');
-      map.on('mouseleave', 'unclustered-point', () => map.getCanvas().style.cursor = '');
+      map.on('mouseenter','clusters',()=> map.getCanvas().style.cursor='pointer');
+      map.on('mouseleave','clusters',()=> map.getCanvas().style.cursor='');
+      map.on('mouseenter','unclustered-point',()=> map.getCanvas().style.cursor='pointer');
+      map.on('mouseleave','unclustered-point',()=> map.getCanvas().style.cursor='');
 
       // UI events
       [...$plChecks, ...$scoreRanges, ...$ratingRanges].forEach(el => el.addEventListener('input', applyFilters));
       $sortBy.addEventListener('change', applyFilters);
-      $reset.addEventListener('click', () => {
-        $plChecks.forEach(c => c.checked = true);
-        $scoreRanges.forEach(c => c.checked = true);
-        $ratingRanges.forEach(c => c.checked = true);
-        $sortBy.value = 'score-desc';
+      $reset.addEventListener('click', ()=>{
+        $plChecks.forEach(c=>c.checked=true);
+        $scoreRanges.forEach(c=>c.checked=true);
+        $ratingRanges.forEach(c=>c.checked=true);
+        $sortBy.value='score-desc';
         applyFilters();
       });
       $download.addEventListener('click', downloadVisible);
 
-      // initial apply (to set count)
       applyFilters();
     });
   }
 
   init();
 
-  // Helpful debug (open browser console if needed)
+  // debug hook (open console if needed)
   map.on('error', e => console.error('Mapbox error:', e && e.error));
 </script>
 </body>
